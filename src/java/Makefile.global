@@ -19,14 +19,14 @@ ifdef USE_GCJ
 	GCJ	:= gcj
 	JAVAC	:= $(GCJ) -C
 else
-	JAVAC	:= javac -source 1.6 -target 1.6
+	JAVAC	:= /usr/bin/javac
 endif
 
 JARFILE	:= $(TARGETDIR)/$(NAME).jar
 
 .timestamp: $(SRCS)
 	@echo $(JAVAC) -d . $(JAVAFLAGS) '<java sources>'
-	@$(JAVAC) -d . $(JAVAFLAGS) $(SRCS)
+	$(JAVAC) -d . $(JAVAFLAGS) $(SRCS)
 	@touch $@
 
 .PHONY: javadoc

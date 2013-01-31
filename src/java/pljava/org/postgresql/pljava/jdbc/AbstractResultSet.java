@@ -157,6 +157,10 @@ public abstract class AbstractResultSet implements ResultSet
 		return this.getObject(this.findColumn(columnName));
 	}
 
+    public <T> T getObject(String columnName, Class<T> type) throws SQLException {
+	return (T)this.getObject(columnName);
+    }
+
 	public Object getObject(String columnName, Map map)
 	throws SQLException
 	{

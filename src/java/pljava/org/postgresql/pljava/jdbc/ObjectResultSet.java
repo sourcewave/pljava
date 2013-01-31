@@ -180,6 +180,10 @@ public abstract class ObjectResultSet extends AbstractResultSet
 		return value;
 	}
 
+    public final <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
+	return (T)getObject(columnIndex);
+    }
+
 	public final Object getObject(int columnIndex, Map map)
 	throws SQLException
 	{

@@ -449,5 +449,11 @@ public class SPIStatement implements Statement
 		  + ".unwrapClass( Class<T> ) not implemented yet.",
 		  "0A000" );
 	}
+	    public boolean isCloseOnCompletion() throws SQLFeatureNotSupportedException {
+		return false;
+	    }
+	    public void closeOnCompletion() throws SQLFeatureNotSupportedException {
+		throw new SQLFeatureNotSupportedException("SPIStatement.closeOnCompletion");
+	    }
 }
 

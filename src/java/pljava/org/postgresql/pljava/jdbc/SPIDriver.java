@@ -12,6 +12,8 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Logger;
+import java.sql.SQLFeatureNotSupportedException;
 
 /**
  *
@@ -84,4 +86,8 @@ public class SPIDriver implements Driver
 	{
 		return s_defaultConn;
 	}
+
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+	throw new SQLFeatureNotSupportedException("getParentLogger");
+    }
 }

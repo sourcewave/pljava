@@ -46,6 +46,8 @@ import java.util.regex.PatternSyntaxException;
 import org.postgresql.pljava.internal.Oid;
 import org.postgresql.pljava.internal.PgSavepoint;
 
+import java.util.concurrent.Executor;
+
 /**
  * Provides access to the current connection (session) the Java stored
  * procedure is running in.  It is returned from the driver manager
@@ -927,6 +929,22 @@ public class SPIConnection implements Connection
 	// ************************************************************
 	// Non-implementation of JDBC 4 methods.
 	// ************************************************************
+
+    public int getNetworkTimeout() throws SQLException {
+	return 10000;
+    }
+    public void setNetworkTimeout(Executor x, int y) throws SQLException {
+	throw new SQLException("setNetworkTimeout not implemented");
+    }
+    public void abort(Executor x) throws SQLFeatureNotSupportedException {
+	throw new SQLFeatureNotSupportedException("SPIConnection.abort");
+    }
+    public String getSchema() throws SQLFeatureNotSupportedException {
+    	throw new SQLFeatureNotSupportedException("SPIConnection.getSchema");
+    }
+    public void setSchema(String s) throws SQLFeatureNotSupportedException {
+    	throw new SQLFeatureNotSupportedException("SPIConnection.setSchema");
+    }
 
 	public Struct createStruct( String typeName, Object[] attributes )
 		throws SQLException
