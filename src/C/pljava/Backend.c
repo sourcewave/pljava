@@ -29,6 +29,12 @@
 #include <ctype.h>
 #include <unistd.h>
 
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <libproc.h>
+#include <syslog.h>
+
 #include "org_postgresql_pljava_internal_Backend.h"
 #include "pljava/Invocation.h"
 #include "pljava/Function.h"
@@ -71,13 +77,13 @@ jlong mainThreadId;
 static JavaVM* s_javaVM = 0;
 static jclass  s_Backend_class;
 static jmethodID s_setTrusted;
-static char* vmoptions;
 static char* classpath;
 static int   statementCacheSize;
-static bool  pljavaDebug;
+static bool  pljavaDebug = false;
 static bool  pljavaReleaseLingeringSavepoints;
 static bool  s_currentTrust;
 static int   s_javaLogLevel;
+static char *vmoptions = " -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=localhost:9909 -Djaxp.debug=1";
 
 bool integerDateTimes = false;
 
@@ -215,103 +221,6 @@ static jint JNICALL my_vfprintf(FILE* fp, const char* format, va_list args)
 
     elog(s_javaLogLevel, "%s", buf);
     return 0;
-}
-
-/*
- * Append those parts of path that has not yet been appended. The HashMap unique is
- * keeping track of what has been appended already. First appended part will be
- * prefixed with prefix.
- */
-static void appendPathParts(const char* path, StringInfoData* bld, HashMap unique, const char* prefix)
-{
-	StringInfoData buf;
-	if(path == 0 || strlen(path) == 0)
-		return;
-
-	for (;;)
-	{
-		char* pathPart;
-		size_t len;
-		if(*path == 0)
-			break;
-
-		len = strcspn(path, ";:");
-
-		if(len == 1 && *(path+1) == ':' && isalnum(*path))
-			/*
-			 * Windows drive designator, leave it "as is".
-			 */
-			len = strcspn(path+2, ";:") + 2;
-		else
-		if(len == 0)
-			{
-			/* Ignore zero length components.
-			 */
-			++path;
-			continue;
-			}
-
-		initStringInfo(&buf);
-		if(*path == '$')
-		{
-			if(len == 7 || (strcspn(path, "/\\") == 7 && strncmp(path, "$libdir", 7) == 0))
-			{
-				len -= 7;
-				path += 7;
-				appendStringInfo(&buf, PKGLIBDIR);
-			}
-			else
-				ereport(ERROR, (
-					errcode(ERRCODE_INVALID_NAME),
-					errmsg("invalid macro name '%*s' in dynamic library path", (int)len, path)));
-		}
-
-		if(len > 0)
-		{
-			appendBinaryStringInfo(&buf, path, len);
-			path += len;
-		}
-
-		pathPart = buf.data;
-		if(HashMap_getByString(unique, pathPart) == 0)
-		{
-			if(HashMap_size(unique) == 0)
-				appendStringInfo(bld, "%s", prefix);
-			else
-#if defined(WIN32)
-				appendStringInfoChar(bld, ';');
-#else
-				appendStringInfoChar(bld, ':');
-#endif
-			appendStringInfo(bld, "%s", pathPart);
-			HashMap_putByString(unique, pathPart, (void*)1);
-		}
-		pfree(pathPart);
-		if(*path == 0)
-			break;
-		++path; /* Skip ':' */
-	}
-}
-
-/*
- * Get the CLASSPATH. Result is always freshly palloc'd.
- */
-static char* getClassPath(const char* prefix)
-{
-	char* path;
-	HashMap unique = HashMap_create(13, CurrentMemoryContext);
-	StringInfoData buf;
-	initStringInfo(&buf);
-	appendPathParts(classpath, &buf, unique, prefix);
-	appendPathParts(getenv("CLASSPATH"), &buf, unique, prefix);
-	PgObject_free((PgObject)unique);
-	path = buf.data;
-	if(strlen(path) == 0)
-	{
-		pfree(path);
-		path = 0;
-	}
-	return path;
 }
 
 #if !defined(WIN32)
@@ -456,9 +365,8 @@ static void JVMOptList_add(JVMOptList* jol, const char* optString, void* extraIn
  * whitespace is found within a string or is escaped by backslash. A
  * backslash escaped quote is not considered a string delimiter.
  */
-static void addUserJVMOptions(JVMOptList* optList)
-{
-	const char* cp = vmoptions;
+static void addUserJVMOptions(JVMOptList* optList, const char *vmopts) {
+	const char* cp = vmopts;
 	
 	if(cp != NULL)
 	{
@@ -562,7 +470,7 @@ static void initializeJavaVM(void)
 	jboolean jstat;
 	JavaVMInitArgs vm_args;
 	JVMOptList optList;
-
+    
 	JVMOptList_init(&optList);
 
 	if(s_firstTimeInit)
@@ -597,23 +505,6 @@ static void initializeJavaVM(void)
 			&classpath,
 			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
 				NULL,
-			#endif
-			PGC_USERSET,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				0,
-			#endif
-			#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
-				NULL,
-			#endif
-			NULL, NULL);
-	
-		DefineCustomBoolVariable(
-			"pljava.debug",
-			"Stop the backend to attach a debugger",
-			NULL,
-			&pljavaDebug,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				false,
 			#endif
 			PGC_USERSET,
 			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
@@ -666,11 +557,47 @@ static void initializeJavaVM(void)
 #ifdef PLJAVA_DEBUG
 	/* Hard setting for debug. Don't forget to recompile...
 	 */
-	pljavaDebug = 1;
+	pljavaDebug = true;
 #endif
 
-	addUserJVMOptions(&optList);
-	effectiveClassPath = getClassPath("-Djava.class.path=");
+	addUserJVMOptions(&optList, vmoptions);
+	
+	/*
+	StringInfoData buf;
+	initStringInfo(&buf);
+	appendStringInfo(&buf, "asdfasdf");
+	appendBinaryStringInfo(&buf, "adfasdf",7);
+	char *path = buf.data
+	*/
+	
+    char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
+	{
+	    int ret;
+        pid_t pid; 
+
+        pid = getpid();
+        ret = proc_pidpath (pid, pathbuf, sizeof(pathbuf));
+        if ( ret <= 0 ) {
+            syslog(LOG_ERR, "PID %d: proc_pidpath ();\n", pid);
+            syslog(LOG_ERR, "    %s\n", strerror(errno));
+        } else {
+            syslog(LOG_ERR, "proc %d: %s\n", pid, pathbuf);
+        }
+    }
+    char *lst = strrchr(pathbuf,'/'); // last slash in path
+    int n = lst-pathbuf;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "-Djava.class.path=");
+    appendBinaryStringInfo(&buf, pathbuf, n+1);
+    appendStringInfo(&buf,"../lib/pljava.jar");
+    appendStringInfo(&buf,":");
+    appendBinaryStringInfo(&buf, pathbuf, n+1);
+    appendStringInfo(&buf,"../lib/classes/");
+
+    effectiveClassPath = buf.data;
+    syslog(LOG_ERR, "classpath = %s\n", effectiveClassPath);
+    
 	if(effectiveClassPath != 0)
 	{
 		JVMOptList_add(&optList, effectiveClassPath, 0, true);
