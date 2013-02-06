@@ -481,6 +481,7 @@ static void initializeJavaVM(void)
 		checkIntTimeType();
 		HashMap_initialize();
 	
+	/*
 		DefineCustomStringVariable(
 			"pljava.vmoptions",
 			"Options sent to the JVM when it is created",
@@ -514,6 +515,7 @@ static void initializeJavaVM(void)
 				NULL,
 			#endif
 			NULL, NULL);
+	*/
 	
 		DefineCustomIntVariable(
 			"pljava.statement_cache_size",
