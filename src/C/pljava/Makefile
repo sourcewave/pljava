@@ -116,9 +116,7 @@ else
 			2> /dev/null))
 	endif
 
-#	PLJAVA_CPPFLAGS += -I"$(JDK_HOME)/include" -I"$(JDK_HOME)/include/$(JRE_INCL)"
-	PLJAVA_CPPFLAGS += -I"$(JDK_HOME)/include"
-
+	PLJAVA_CPPFLAGS += -I"$(JDK_HOME)/include" -I"$(JDK_HOME)/include/$(JRE_INCL)"
 	SHLIB_LINK += -L. -L"$(JVM_LIB)" -ljvm $(PLJAVA_LDFLAGS)
 
 	ifdef USE_LD_RPATH
