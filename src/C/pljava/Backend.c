@@ -8,6 +8,20 @@
  *
  * @author Thomas Hallgren
  */
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <stddef.h>
+#include <string.h>
+#include <errno.h>
+#include <syslog.h>
+
+#ifdef __APPLE__
+#include <libproc.h>
+#endif
+
 #include <postgres.h>
 #include <miscadmin.h>
 #ifndef WIN32
@@ -25,15 +39,6 @@
 #include <catalog/pg_type.h>
 #include <storage/ipc.h>
 #include <storage/proc.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <unistd.h>
-
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <libproc.h>
-#include <syslog.h>
 
 #include "org_postgresql_pljava_internal_Backend.h"
 #include "pljava/Invocation.h"
@@ -572,21 +577,38 @@ static void initializeJavaVM(void)
 	appendBinaryStringInfo(&buf, "adfasdf",7);
 	char *path = buf.data
 	*/
-	
-    char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
-	{
-	    int ret;
-        pid_t pid; 
 
-        pid = getpid();
-        ret = proc_pidpath (pid, pathbuf, sizeof(pathbuf));
-        if ( ret <= 0 ) {
-            syslog(LOG_ERR, "PID %d: proc_pidpath ();\n", pid);
-            syslog(LOG_ERR, "    %s\n", strerror(errno));
-        } else {
-            syslog(LOG_ERR, "proc %d: %s\n", pid, pathbuf);
-        }
+
+
+    // WARNING: this code will only work on linux or OS X
+#ifdef __APPLE__
+    char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
+    {
+    int pid = getpid();
+    int ret = proc_pidpath(pid, pathbuf, PROC_PIDPATHINFO_MAXSIZE);
+    if ( ret <= 0 ) {
+        syslog(LOG_ERR, "PID %d: proc_pidpath ();\n", pid);
+        syslog(LOG_ERR, "    %s\n", strerror(errno));
+    } else {
+        syslog(LOG_ERR, "proc %d: %s\n", pid, pathbuf);
     }
+    }
+#else
+    char pathbuf[PATH_MAX];
+    {
+    const char* exe_sym_path = "/proc/self/exe";
+    // when BSD: /proc/curproc/file
+    // when Solaris: /proc/self/path/a.out
+    // Unix: getexecname(3)
+    ssize_t ret = readlink(exe_sym_path, pathbuf, PATH_MAX);
+    if (ret == PATH_MAX || ret == -1) {
+      syslog(LOG_ERR, "Getting executable path: %s\n",strerror(errno));
+    } else {
+      pathbuf[ret] = '\0';
+    }
+    }
+#endif
+
     char *lst = strrchr(pathbuf,'/'); // last slash in path
     int n = lst-pathbuf;
     StringInfoData buf;
