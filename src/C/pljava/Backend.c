@@ -560,6 +560,7 @@ static void initializeJavaVM(void)
 	/* Hard setting for debug. Don't forget to recompile...
 	 */
 	pljavaDebug = true;
+#warning Pljava Debug
 #endif
 
 	addUserJVMOptions(&optList, vmoptions);

@@ -42,14 +42,6 @@ PLJAVA_CPPFLAGS = \
 ifeq ($(PORTNAME), win32)
 	DLL_BUILD := 1
 else
-ifeq ($(PORTNAME), darwin)
-	#
-	# override with JAVAVM_FWX_ROOT=/... on command line
-	# if something else is needed
-	#
-	JAVAVM_FWX_ROOT := /System/Library/Frameworks
-	PLJAVA_CPPFLAGS += -I$(JAVAVM_FWX_ROOT)/JavaVM.framework/Headers/
-else
 ifeq ($(PORTNAME), ibmos2)
 	DLL_BUILD := 1
 else
@@ -77,8 +69,6 @@ else
 			JRE_CPU := amd64
 		endif
 	endif
-
-endif
 endif
 endif
 
@@ -91,96 +81,93 @@ ifdef USE_GCJ
 	OBJS += pljava_jar.o
 else
 	pljava-jar = pljava.jar
-	ifeq ($(PORTNAME), darwin)
-		SHLIB_LINK += -L. -framework JavaVM $(PLJAVA_LDFLAGS)
+	ifdef JAVA_HOME
+		ifeq ($(PORTNAME), win32)
+			JDK_HOME := $(subst \,/,$(JAVA_HOME))
+		else
+			JDK_HOME := $(JAVA_HOME)
+		endif
 	else
-		ifdef JAVA_HOME
-			ifeq ($(PORTNAME), win32)
-				JDK_HOME := $(subst \,/,$(JAVA_HOME))
-			else
-				JDK_HOME := $(JAVA_HOME)
+		ifeq ($(PORTNAME), ibmos2)
+			JAVA_HOME_TEST_RESULT := $(echo "You must set JAVA_HOME")
+		else
+			JAVA_HOME_TEST_RESULT := $(error You must set JAVA_HOME)
+		endif
+	endif
+	ifdef DLL_BUILD
+		ifeq ($(PORTNAME),ibmos2)
+			JRE_INCL := os2
+		else
+			JRE_INCL := win32
+		endif
+		ifeq ($(host_cpu), x86_64)
+			JVM_LIB  := $(JDK_HOME)/jre/bin/server
+		else
+			JVM_LIB  := $(JDK_HOME)/jre/bin/client
+		endif
+	else
+		JRE_LIB := $(JDK_HOME)/jre/lib/$(JRE_CPU)
+		JVM_LIB := $(firstword $(shell /bin/ls -d \
+			$(JRE_LIB)/client \
+			$(JRE_LIB)/server \
+			$(JRE_LIB)/jrockit \
+			$(JDK_HOME)/jre/bin/j9vm \
+			$(JAVA_HOME)/jre/lib/server \
+			2> /dev/null))
+	endif
+
+	PLJAVA_CPPFLAGS += -I"$(JDK_HOME)/include" -I"$(JDK_HOME)/include/$(JRE_INCL)"
+	SHLIB_LINK += -L. -L"$(JVM_LIB)" -ljvm $(PLJAVA_LDFLAGS)
+
+	ifdef USE_LD_RPATH
+		ifeq (${USE_LD_RPATH},1)
+			SHLIB_LINK += -Wl,-rpath,${JVM_LIB}
+			ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
+				SHLIB_LINK += \
+					-Wl,-rpath,$(JVM_LIB:/j9vm=)
 			endif
 		else
-			ifeq ($(PORTNAME), ibmos2)
-				JAVA_HOME_TEST_RESULT := $(echo "You must set JAVA_HOME")
-			else
-				JAVA_HOME_TEST_RESULT := $(error You must set JAVA_HOME)
-			endif
-		endif
-		ifdef DLL_BUILD
-			ifeq ($(PORTNAME),ibmos2)
-				JRE_INCL := os2
-			else
-				JRE_INCL := win32
-			endif
-			ifeq ($(host_cpu), x86_64)
-				JVM_LIB  := $(JDK_HOME)/jre/bin/server
-			else
-				JVM_LIB  := $(JDK_HOME)/jre/bin/client
+		ifeq (${USE_LD_RPATH},2)
+			SHLIB_LINK += -rpath ${JVM_LIB}
+			ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
+				SHLIB_LINK += \
+					-rpath $(JVM_LIB:/j9vm=)
 			endif
 		else
-			JRE_LIB := $(JDK_HOME)/jre/lib/$(JRE_CPU)
-			JVM_LIB := $(firstword $(shell /bin/ls -d \
-				$(JRE_LIB)/client \
-				$(JRE_LIB)/server \
-				$(JRE_LIB)/jrockit \
-				$(JDK_HOME)/jre/bin/j9vm \
-				2> /dev/null))
+		ifeq (${USE_LD_RPATH},3)
+			SHLIB_LINK += -R${JVM_LIB}
+			ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
+				SHLIB_LINK += \
+					-R$(JVM_LIB:/j9vm=)
+			endif
+		else
+		ifeq (${USE_LD_RPATH},4)
+			SHLIB_LINK += -R ${JVM_LIB}
+			ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
+				SHLIB_LINK += \
+					-R $(JVM_LIB:/j9vm=)
+			endif
+		else
+		ifeq (${USE_LD_RPATH},5)
+			SHLIB_LINK += -Wl,-R${JVM_LIB}
+			ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
+				SHLIB_LINK += \
+					-Wl,-R$(JVM_LIB:/j9vm=)
+			endif
+		else
+		ifeq (${USE_LD_RPATH},6)
+			SHLIB_LINK += -Wl,-R,${JVM_LIB}
+			ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
+				SHLIB_LINK += \
+					-Wl,-R,$(JVM_LIB:/j9vm=)
+			endif
+		endif
+		endif
+		endif
+		endif
+		endif
 		endif
 
-		PLJAVA_CPPFLAGS += -I"$(JDK_HOME)/include" -I"$(JDK_HOME)/include/$(JRE_INCL)"
-		SHLIB_LINK += -L. -L"$(JVM_LIB)" -ljvm $(PLJAVA_LDFLAGS)
-
-		ifdef USE_LD_RPATH
-			ifeq (${USE_LD_RPATH},1)
-				SHLIB_LINK += -Wl,-rpath,${JVM_LIB}
-				ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
-					SHLIB_LINK += \
-						-Wl,-rpath,$(JVM_LIB:/j9vm=)
-				endif
-			else
-			ifeq (${USE_LD_RPATH},2)
-				SHLIB_LINK += -rpath ${JVM_LIB}
-				ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
-					SHLIB_LINK += \
-						-rpath $(JVM_LIB:/j9vm=)
-				endif
-			else
-			ifeq (${USE_LD_RPATH},3)
-				SHLIB_LINK += -R${JVM_LIB}
-				ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
-					SHLIB_LINK += \
-						-R$(JVM_LIB:/j9vm=)
-				endif
-			else
-			ifeq (${USE_LD_RPATH},4)
-				SHLIB_LINK += -R ${JVM_LIB}
-				ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
-					SHLIB_LINK += \
-						-R $(JVM_LIB:/j9vm=)
-				endif
-			else
-			ifeq (${USE_LD_RPATH},5)
-				SHLIB_LINK += -Wl,-R${JVM_LIB}
-				ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
-					SHLIB_LINK += \
-						-Wl,-R$(JVM_LIB:/j9vm=)
-				endif
-			else
-			ifeq (${USE_LD_RPATH},6)
-				SHLIB_LINK += -Wl,-R,${JVM_LIB}
-				ifneq ($(JVM_LIB), $(JVM_LIB:/j9vm=))
-					SHLIB_LINK += \
-						-Wl,-R,$(JVM_LIB:/j9vm=)
-				endif
-			endif
-			endif
-			endif
-			endif
-			endif
-			endif
-
-		endif
 	endif
 endif
 
