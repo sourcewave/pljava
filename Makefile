@@ -63,6 +63,8 @@ export PLJAVA_PATCH_VER	:= 0
 export PLJAVA_VERSION	:= $(PLJAVA_MAJOR_VER).$(PLJAVA_MINOR_VER).$(PLJAVA_PATCH_VER)
 export TAR				:= /bin/tar
 
+export JAVA_HOME      := /usr/lib/jvm/java-7-openjdk-amd64
+
 OS := $(shell uname -s)
 MACHINE := $(shell uname -m)
 
