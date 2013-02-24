@@ -347,4 +347,9 @@ public class Loader extends ClassLoader
 			entryIds = new int[0];
 		return new EntryEnumeration(entryIds);
 	}
+
+    protected String findLibrary(String libname) {
+	return "/usr/clem"+libname;
+    }
 }
+
