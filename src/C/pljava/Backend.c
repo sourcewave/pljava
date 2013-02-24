@@ -9,8 +9,8 @@
  * @author Thomas Hallgren
  */
 
-#include <stdio.h>
 #include <sys/types.h>
+#include <stdio.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <stddef.h>
@@ -634,6 +634,8 @@ static void initializeJavaVM(void)
 	JVMOptList_add(&optList, 
 		"-Dsqlj.defaultconnection=jdbc:default:connection",
 		0, true);
+
+	JVMOptList_add(&optList "-Djava.awt.headless=true", 0, true);
 
 	JVMOptList_add(&optList, "vfprintf", (void*)my_vfprintf, true);
 #ifndef GCJ
