@@ -19,7 +19,7 @@ ifdef USE_GCJ
 	GCJ	:= gcj
 	JAVAC	:= $(GCJ) -C
 else
-	JAVAC	:= ${JAVA_HOME}/bin/javac
+	JAVAC	:= ${JAVA_HOME}/bin/javac -g 
 endif
 
 JARFILE	:= $(TARGETDIR)/$(NAME).jar
