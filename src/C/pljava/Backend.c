@@ -84,11 +84,10 @@ static jclass  s_Backend_class;
 static jmethodID s_setTrusted;
 static char* classpath;
 static int   statementCacheSize;
-static bool  pljavaDebug = false;
 static bool  pljavaReleaseLingeringSavepoints;
 static bool  s_currentTrust;
 static int   s_javaLogLevel;
-static char *vmoptions = " -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=localhost:9909 -Djaxp.debug=1";
+static char *vmoptions = " -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=localhost:%d ";
 
 bool integerDateTimes = false;
 
@@ -521,7 +520,41 @@ static void initializeJavaVM(void)
 			#endif
 			NULL, NULL);
 	*/
+	/*	DefineCustomBoolVariable(
+			"pljava.c_debug",
+			"If true, wait for gdb remote debugging",
+			NULL,
+			&pljavaReleaseLingeringSavepoints,
+			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
+				false,
+			#endif
+			PGC_USERSET,
+			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
+				0,
+			#endif
+			#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
+				NULL,
+			#endif
+			NULL, NULL);
 	
+	DefineCustomIntVariable(
+	"pljava.debug_port",
+	"Port number for JVM debugging",
+	NULL,
+	&debug_port,
+		#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
+			0,
+		#endif
+		0, 65535,
+		PGC_USERSET,
+		#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
+			0,
+		#endif
+		#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
+			NULL,
+		#endif
+		NULL, NULL);
+
 		DefineCustomIntVariable(
 			"pljava.statement_cache_size",
 			"Size of the prepared statement MRU cache",
@@ -556,19 +589,37 @@ static void initializeJavaVM(void)
 				NULL,
 			#endif
 			NULL, NULL);
-	
-		EmitWarningsOnPlaceholders("pljava");
+	*/
+	//	EmitWarningsOnPlaceholders("pljava");
 			s_firstTimeInit = false;
 	}
+	
+	{
+        bool c_debug = false;
+        const char *cdb = GetConfigOption("pljava.c_debug", true, false);
+        if (cdb != NULL) {
+            if (*cdb == 't' || *cdb == '1' || *cdb == 'y') {
+                c_debug = true;
+            }
+        }
 
-#ifdef PLJAVA_DEBUG
-	/* Hard setting for debug. Don't forget to recompile...
-	 */
-	pljavaDebug = true;
-#warning Pljava Debug
-#endif
+	    if (c_debug) {
+		  elog(INFO, "Backend pid = %d. Attach the debugger and set c_debug to false to continue", getpid());
+		  while(c_debug)
+			pg_usleep(1000000L);
+	    }
+    }
+    
+	
+	{
+        int debug_port = 0;
+        const char *dbp = GetConfigOption("pljava.debug_port", true, false);
+        if (dbp != NULL) debug_port = atoi(dbp);
+        char buf[4096]; 
+        sprintf(buf, vmoptions, debug_port);
 
-	addUserJVMOptions(&optList, vmoptions);
+	    if (debug_port > 0) addUserJVMOptions(&optList, buf);
+	}
 	
 	/*
 	StringInfoData buf;
@@ -627,7 +678,7 @@ static void initializeJavaVM(void)
 	{
 		JVMOptList_add(&optList, effectiveClassPath, 0, true);
 	}
-
+	
 	/**
 	 * As stipulated by JRT-2003
 	 */
@@ -641,12 +692,6 @@ static void initializeJavaVM(void)
 #ifndef GCJ
 	JVMOptList_add(&optList, "-Xrs", 0, true);
 #endif
-	if(pljavaDebug)
-	{
-		elog(INFO, "Backend pid = %d. Attach the debugger and set pljavaDebug to false to continue", getpid());
-		while(pljavaDebug)
-			pg_usleep(1000000L);
-	}
 
 	vm_args.nOptions = optList.size;
 	vm_args.options  = optList.options;
