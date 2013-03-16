@@ -687,7 +687,16 @@ static void initializeJavaVM(void)
 		0, true);
 
 	JVMOptList_add(&optList, "-Djava.awt.headless=true", 0, true);
+	
+    StringInfoData bbuf;
+    initStringInfo(&bbuf);
+    appendStringInfo(&bbuf,"-Djava.library.path=");
+    appendBinaryStringInfo(&bbuf, pathbuf, n+1);
+    appendStringInfo(&bbuf, "../lib");
+    
+    JVMOptList_add(&optList, bbuf.data, 0, true);
 
+    //    JVMOptList_add(&optList, "-verbose:jni",0,true);
 	JVMOptList_add(&optList, "vfprintf", (void*)my_vfprintf, true);
 #ifndef GCJ
 	JVMOptList_add(&optList, "-Xrs", 0, true);
