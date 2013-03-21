@@ -88,6 +88,7 @@ static bool  pljavaReleaseLingeringSavepoints;
 static bool  s_currentTrust;
 static int   s_javaLogLevel;
 static char *vmoptions = " -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=localhost:%d ";
+static char *vmoptions2 = " -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=localhost:%d ";
 
 bool integerDateTimes = false;
 
@@ -615,10 +616,14 @@ static void initializeJavaVM(void)
         int debug_port = 0;
         const char *dbp = GetConfigOption("pljava.debug_port", true, false);
         if (dbp != NULL) debug_port = atoi(dbp);
-        char buf[4096]; 
+        char buf[4096];
+        char buf2[4096];
+
         sprintf(buf, vmoptions, debug_port);
+        sprintf(buf2, vmoptions2, -debug_port);
 
 	    if (debug_port > 0) addUserJVMOptions(&optList, buf);
+	    else if (debug_port < 0) addUserJVMOptions(&optList, buf2);
 	}
 	
 	/*
