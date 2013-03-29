@@ -13,8 +13,6 @@
 #include "pljava/type/ErrorData.h"
 #include "pljava/type/String.h"
 
-JNIEnv* jniEnv;
-
 #if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER >= 3))
 extern PGDLLIMPORT int log_min_messages;
 extern PGDLLIMPORT int client_min_messages;
@@ -24,11 +22,19 @@ extern DLLIMPORT int client_min_messages;
 #endif
 static jobject s_threadLock;
 
+extern JNIEnv *jniEnv;
+
+static void stoppablex(void) {
+    int i=1;
+    printf("stoppablex\n");
+}
+
 #define BEGIN_JAVA { JNIEnv* env = jniEnv; jniEnv = 0;
 #define END_JAVA jniEnv = env; }
 
 #define BEGIN_CALL \
 	BEGIN_JAVA \
+    stoppablex(); \
 	if((*env)->MonitorExit(env, s_threadLock) < 0) \
 		elog(ERROR, "Java exit monitor failure");
 
@@ -113,16 +119,21 @@ static void endCall(JNIEnv* env)
 
 bool beginNativeNoErrCheck(JNIEnv* env)
 {
-	if((env = JNI_setEnv(env)) != 0)
+	if((env = JNI_setEnv(env)) /*!= 0 */ )
 	{
 		/* The backend is *not* awaiting the return of a call to the JVM
 		 * so there's no way the JVM can be allowed to call out at this
 		 * point.
 		 */
-		Exception_throw(ERRCODE_INTERNAL_ERROR,
+
+    // zap this error check out 
+    // on Linux the interaction between pg_jinx and this causes problems for logging
+
+/*		Exception_throw(ERRCODE_INTERNAL_ERROR,
 			"An attempt was made to call a PostgreSQL backend function while main thread was not in the JVM");
+			*/
 		JNI_setEnv(env);
-		return false;
+		return true;
 	}
 	return true;
 }
@@ -481,7 +492,7 @@ void JNI_deleteWeakGlobalRef(jweak object)
 	END_JAVA
 }
 
-jint JNI_destroyVM(JavaVM *vm)
+/*jint JNI_destroyVM(JavaVM *vm)
 {
 	jint result;
 	BEGIN_JAVA
@@ -491,6 +502,7 @@ jint JNI_destroyVM(JavaVM *vm)
 	s_threadLock = 0;
 	return result;
 }
+*/
 
 jboolean JNI_exceptionCheck(void)
 {

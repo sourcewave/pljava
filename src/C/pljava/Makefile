@@ -16,6 +16,10 @@ mkobjs	= $(subst $(SRCDIR)/,,$(1:%.c=%.o))
 SRCS	= $(shell find $(SRCDIR) -name CVS -prune -o -type f -name \*.c -print)
 OBJS	= $(call mkobjs,$(SRCS))
 
+CFLAGS += -DJLIB_PATH=$(JAVA_HOME)/jre/lib/amd64
+
+sharedir = $(shell ${PG_CONFIG} --sharedir)
+
 DLLTOOL_DEFFLAGS := --add-stdcall-alias
 
 .PHONY: checkjavahome build pljava-plugin
@@ -257,6 +261,7 @@ build_all: $(plugin)
 
 build_install: build_all installdirs
 	$(INSTALL_SHLIB) $(plugin) $(DESTDIR)$(pkglibdir)/$(plugin)
+	$(INSTALL_DATA) ../../src/sql/pljava* $(sharedir)/extension/
 ifndef USE_GCJ
 	$(INSTALL_DATA) ../$(pljava-jar) $(DESTDIR)$(pkglibdir)
 endif
