@@ -1,0 +1,5 @@
+
+comment = 'Deprecated Postgres interface to Java for stored procedures'
+default_version = '1.0'
+module_pathname = '$libdir/pljava'
+relocatable = true
