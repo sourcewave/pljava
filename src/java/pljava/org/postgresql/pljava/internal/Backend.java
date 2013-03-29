@@ -189,6 +189,10 @@ public class Backend
 							return;
 						fileDir = fileDir.getParentFile();
 					}
+					
+					// Now I need to check to see if the read is on the classpath -- in which case it should be allowed.
+					// For now, just disable security
+					return; 
 				}
 				throw new SecurityException(perm.getActions() + " on " + perm.getName());
 			}

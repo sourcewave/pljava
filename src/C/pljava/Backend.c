@@ -77,9 +77,12 @@ PG_MODULE_MAGIC;
 
 #define LOCAL_REFERENCE_COUNT 128
 
+extern void doJVMinit(void);
+
 jlong mainThreadId;
 
-static JavaVM* s_javaVM = 0;
+extern JavaVM *s_javaVM;
+
 static jclass  s_Backend_class;
 static jmethodID s_setTrusted;
 static char* classpath;
@@ -282,7 +285,7 @@ static void terminationTimeoutHandler(int signum)
 /*
  * proc_exit callback to tear down the JVM
  */
-static void _destroyJavaVM(int status, Datum dummy)
+/*static void _destroyJavaVM(int status, Datum dummy)
 {
 	if(s_javaVM != 0)
 	{
@@ -315,6 +318,7 @@ static void _destroyJavaVM(int status, Datum dummy)
 		currentInvocation = 0;
 	}
 }
+*/
 
 typedef struct {
 	JavaVMOption* options;
@@ -486,111 +490,6 @@ static void initializeJavaVM(void)
 		checkIntTimeType();
 		HashMap_initialize();
 	
-	/*
-		DefineCustomStringVariable(
-			"pljava.vmoptions",
-			"Options sent to the JVM when it is created",
-			NULL,
-			&vmoptions,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				NULL,
-			#endif
-			PGC_USERSET,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				0,
-			#endif
-			#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
-				NULL,
-			#endif
-			NULL, NULL);
-	
-		DefineCustomStringVariable(
-			"pljava.classpath",
-			"Classpath used by the JVM",
-			NULL,
-			&classpath,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				NULL,
-			#endif
-			PGC_USERSET,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				0,
-			#endif
-			#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
-				NULL,
-			#endif
-			NULL, NULL);
-	*/
-	/*	DefineCustomBoolVariable(
-			"pljava.c_debug",
-			"If true, wait for gdb remote debugging",
-			NULL,
-			&pljavaReleaseLingeringSavepoints,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				false,
-			#endif
-			PGC_USERSET,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				0,
-			#endif
-			#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
-				NULL,
-			#endif
-			NULL, NULL);
-	
-	DefineCustomIntVariable(
-	"pljava.debug_port",
-	"Port number for JVM debugging",
-	NULL,
-	&debug_port,
-		#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-			0,
-		#endif
-		0, 65535,
-		PGC_USERSET,
-		#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-			0,
-		#endif
-		#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
-			NULL,
-		#endif
-		NULL, NULL);
-
-		DefineCustomIntVariable(
-			"pljava.statement_cache_size",
-			"Size of the prepared statement MRU cache",
-			NULL,
-			&statementCacheSize,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				11,
-			#endif
-			0, 512,
-			PGC_USERSET,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				0,
-			#endif
-			#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
-				NULL,
-			#endif
-			NULL, NULL);
-	
-		DefineCustomBoolVariable(
-			"pljava.release_lingering_savepoints",
-			"If true, lingering savepoints will be released on function exit. If false, the will be rolled back",
-			NULL,
-			&pljavaReleaseLingeringSavepoints,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				false,
-			#endif
-			PGC_USERSET,
-			#if (PGSQL_MAJOR_VER > 8 || (PGSQL_MAJOR_VER == 8 && PGSQL_MINOR_VER > 3))
-				0,
-			#endif
-			#if (PGSQL_MAJOR_VER > 9 || (PGSQL_MAJOR_VER == 9 && PGSQL_MINOR_VER > 0))
-				NULL,
-			#endif
-			NULL, NULL);
-	*/
 	//	EmitWarningsOnPlaceholders("pljava");
 			s_firstTimeInit = false;
 	}
@@ -611,122 +510,8 @@ static void initializeJavaVM(void)
 	    }
     }
     
-	
-	{
-        int debug_port = 0;
-        const char *dbp = GetConfigOption("pljava.debug_port", true, false);
-        if (dbp != NULL) debug_port = atoi(dbp);
-        char buf[4096];
-        char buf2[4096];
-
-        sprintf(buf, vmoptions, debug_port);
-        sprintf(buf2, vmoptions2, -debug_port);
-
-	    if (debug_port > 0) addUserJVMOptions(&optList, buf);
-	    else if (debug_port < 0) addUserJVMOptions(&optList, buf2);
-	}
-	
-	/*
-	StringInfoData buf;
-	initStringInfo(&buf);
-	appendStringInfo(&buf, "asdfasdf");
-	appendBinaryStringInfo(&buf, "adfasdf",7);
-	char *path = buf.data
-	*/
-
-
-
-    // WARNING: this code will only work on linux or OS X
-#ifdef __APPLE__
-    char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
-    {
-    int pid = getpid();
-    int ret = proc_pidpath(pid, pathbuf, PROC_PIDPATHINFO_MAXSIZE);
-    if ( ret <= 0 ) {
-        syslog(LOG_ERR, "PID %d: proc_pidpath ();\n", pid);
-        syslog(LOG_ERR, "    %s\n", strerror(errno));
-    } else {
-        syslog(LOG_ERR, "proc %d: %s\n", pid, pathbuf);
-    }
-    }
-#else
-    char pathbuf[PATH_MAX];
-    {
-    const char* exe_sym_path = "/proc/self/exe";
-    // when BSD: /proc/curproc/file
-    // when Solaris: /proc/self/path/a.out
-    // Unix: getexecname(3)
-    ssize_t ret = readlink(exe_sym_path, pathbuf, PATH_MAX);
-    if (ret == PATH_MAX || ret == -1) {
-      syslog(LOG_ERR, "Getting executable path: %s\n",strerror(errno));
-    } else {
-      pathbuf[ret] = '\0';
-    }
-    }
-#endif
-
-    char *lst = strrchr(pathbuf,'/'); // last slash in path
-    int n = lst-pathbuf;
-    StringInfoData buf;
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "-Djava.class.path=");
-    appendBinaryStringInfo(&buf, pathbuf, n+1);
-    appendStringInfo(&buf,"../lib/pljava.jar");
-    appendStringInfo(&buf,":");
-    appendBinaryStringInfo(&buf, pathbuf, n+1);
-    appendStringInfo(&buf,"../lib/classes/");
-
-    effectiveClassPath = buf.data;
-    syslog(LOG_ERR, "classpath = %s\n", effectiveClassPath);
+    doJVMinit();
     
-	if(effectiveClassPath != 0)
-	{
-		JVMOptList_add(&optList, effectiveClassPath, 0, true);
-	}
-	
-	/**
-	 * As stipulated by JRT-2003
-	 */
-	JVMOptList_add(&optList, 
-		"-Dsqlj.defaultconnection=jdbc:default:connection",
-		0, true);
-
-	JVMOptList_add(&optList, "-Djava.awt.headless=true", 0, true);
-	
-    StringInfoData bbuf;
-    initStringInfo(&bbuf);
-    appendStringInfo(&bbuf,"-Djava.library.path=");
-    appendBinaryStringInfo(&bbuf, pathbuf, n+1);
-    appendStringInfo(&bbuf, "../lib");
-    
-    JVMOptList_add(&optList, bbuf.data, 0, true);
-
-    //    JVMOptList_add(&optList, "-verbose:jni",0,true);
-	JVMOptList_add(&optList, "vfprintf", (void*)my_vfprintf, true);
-#ifndef GCJ
-	JVMOptList_add(&optList, "-Xrs", 0, true);
-#endif
-
-	vm_args.nOptions = optList.size;
-	vm_args.options  = optList.options;
-	vm_args.version  = JNI_VERSION_1_4;
-	vm_args.ignoreUnrecognized = JNI_FALSE;
-
-	elog(DEBUG1, "Creating JavaVM");
-
-	jstat = JNI_createVM(&s_javaVM, &vm_args);
-
-	if(jstat == JNI_OK && JNI_exceptionCheck())
-	{
-		JNI_exceptionDescribe();
-		JNI_exceptionClear();
-		jstat = JNI_ERR;
-	}
-	JVMOptList_delete(&optList);
-
-	if(jstat != JNI_OK)
-		ereport(ERROR, (errmsg("Failed to create Java VM")));
-
 #if !defined(WIN32)
 	pqsignal(SIGINT,  pljavaStatementCancelHandler);
 	pqsignal(SIGTERM, pljavaDieHandler);
@@ -736,7 +521,7 @@ static void initializeJavaVM(void)
 
 	/* Register an on_proc_exit handler that destroys the VM
 	 */
-	on_proc_exit(_destroyJavaVM, 0);
+	// on_proc_exit(_destroyJavaVM, 0);
 	initPLJavaClasses();
 	initJavaSession();
 }
@@ -786,7 +571,7 @@ static Datum internalCallHandler(bool trusted, PG_FUNCTION_ARGS)
 			 * the VM if it exists. Perhaps the user will try
 			 * fixing the pljava.classpath and make a new attempt.
 			 */
-			_destroyJavaVM(0, 0);			
+			// _destroyJavaVM(0, 0);			
 
 			/* We can't stay here...
 			 */
