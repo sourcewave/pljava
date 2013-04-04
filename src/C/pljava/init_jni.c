@@ -2,8 +2,11 @@
 #include <jni.h>
 #include <postgres.h>
 #ifdef __APPLE__
+#undef false
+#undef true
 #include <libproc.h>
 #endif
+#include <limits.h>
 #include <syslog.h>
 #include <unistd.h>
 
