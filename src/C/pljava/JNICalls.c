@@ -113,6 +113,9 @@ static void endCall(JNIEnv* env)
 
 bool beginNativeNoErrCheck(JNIEnv* env)
 {
+    // zap this error check out 
+    // on Linux the interaction between pg_jinx and this causes problems for logging
+    return true;
 	if((env = JNI_setEnv(env)) != 0)
 	{
 		/* The backend is *not* awaiting the return of a call to the JVM
