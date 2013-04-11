@@ -24,11 +24,17 @@ static jobject s_threadLock;
 
 extern JNIEnv *jniEnv;
 
+static void stoppablex(void) {
+    int i=1;
+    printf("stoppablex\n");
+}
+
 #define BEGIN_JAVA { JNIEnv* env = jniEnv; jniEnv = 0;
 #define END_JAVA jniEnv = env; }
 
 #define BEGIN_CALL \
 	BEGIN_JAVA \
+    stoppablex(); \
 	if((*env)->MonitorExit(env, s_threadLock) < 0) \
 		elog(ERROR, "Java exit monitor failure");
 
