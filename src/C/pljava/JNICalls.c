@@ -119,7 +119,7 @@ static void endCall(JNIEnv* env)
 
 bool beginNativeNoErrCheck(JNIEnv* env)
 {
-	if((env = JNI_setEnv(env)) != 0)
+	if((env = JNI_setEnv(env)) /*!= 0 */ )
 	{
 		/* The backend is *not* awaiting the return of a call to the JVM
 		 * so there's no way the JVM can be allowed to call out at this
@@ -129,10 +129,11 @@ bool beginNativeNoErrCheck(JNIEnv* env)
     // zap this error check out 
     // on Linux the interaction between pg_jinx and this causes problems for logging
 
-		Exception_throw(ERRCODE_INTERNAL_ERROR,
+/*		Exception_throw(ERRCODE_INTERNAL_ERROR,
 			"An attempt was made to call a PostgreSQL backend function while main thread was not in the JVM");
+			*/
 		JNI_setEnv(env);
-		return false;
+		return true;
 	}
 	return true;
 }

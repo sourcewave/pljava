@@ -679,7 +679,7 @@ Java_org_postgresql_pljava_internal_Backend__1getStatementCacheSize(JNIEnv* env,
 JNIEXPORT void JNICALL
 JNICALL Java_org_postgresql_pljava_internal_Backend__1log(JNIEnv* env, jclass cls, jint logLevel, jstring jstr)
 {
-//  BEGIN_NATIVE_NO_ERRCHECK
+    BEGIN_NATIVE_NO_ERRCHECK
     char* str = String_createNTS(jstr);
     if(str != 0)
     {
@@ -725,7 +725,7 @@ JNICALL Java_org_postgresql_pljava_internal_Backend__1log(JNIEnv* env, jclass cl
         }
         PG_END_TRY();
     }
-//  END_NATIVE
+    END_NATIVE
 }
 
 /*
