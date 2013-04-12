@@ -16,6 +16,8 @@ mkobjs	= $(subst $(SRCDIR)/,,$(1:%.c=%.o))
 SRCS	= $(shell find $(SRCDIR) -name CVS -prune -o -type f -name \*.c -print)
 OBJS	= $(call mkobjs,$(SRCS))
 
+CFLAGS += -DJLIB_PATH=$(JAVA_HOME)/jre/lib/amd64
+
 sharedir = $(shell ${PG_CONFIG} --sharedir)
 
 DLLTOOL_DEFFLAGS := --add-stdcall-alias
