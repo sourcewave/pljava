@@ -16,8 +16,6 @@ mkobjs	= $(subst $(SRCDIR)/,,$(1:%.c=%.o))
 SRCS	= $(shell find $(SRCDIR) -name CVS -prune -o -type f -name \*.c -print)
 OBJS	= $(call mkobjs,$(SRCS))
 
-CFLAGS += -DJLIB_PATH=$(JAVA_HOME)/jre/lib/amd64
-
 sharedir = $(shell ${PG_CONFIG} --sharedir)
 
 DLLTOOL_DEFFLAGS := --add-stdcall-alias
@@ -42,6 +40,10 @@ PLJAVA_CPPFLAGS = \
 	-DPGSQL_MAJOR_VER=$(PGSQL_MAJOR_VER) \
 	-DPGSQL_MINOR_VER=$(PGSQL_MINOR_VER) \
 	-DPGSQL_PATCH_VER=$(PGSQL_PATCH_VER)
+
+# PLJAVA_CPPFLAGS += -DJLIB_PATH=$(JAVA_HOME)/jre/lib/amd64
+
+
 
 ifeq ($(PORTNAME), win32)
 	DLL_BUILD := 1
