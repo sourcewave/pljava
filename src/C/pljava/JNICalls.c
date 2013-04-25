@@ -32,9 +32,9 @@ static void stoppablex(void) {
 #define BEGIN_JAVA { JNIEnv* env = jniEnv; jniEnv = 0;
 #define END_JAVA jniEnv = env; }
 
+// insert stoppablex after Begin_java if need to stop here
 #define BEGIN_CALL \
 	BEGIN_JAVA \
-    stoppablex(); \
 	if((*env)->MonitorExit(env, s_threadLock) < 0) \
 		elog(ERROR, "Java exit monitor failure");
 
