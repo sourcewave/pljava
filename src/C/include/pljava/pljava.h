@@ -34,6 +34,8 @@ extern int vsnprintf(char* buf, size_t count, const char* format, va_list arg);
 #include <utils/memutils.h>
 #include <tcop/tcopprot.h>
 
+#include <access/htup_details.h>
+
 /* The errorOccured will be set when a call from Java into one of the
  * backend functions results in a elog that causes a longjmp (Levels >= ERROR)
  * that was trapped using the PLJAVA_TRY/PLJAVA_CATCH macros.
